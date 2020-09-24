@@ -292,3 +292,36 @@ def suggest_dep(string):
                     "treinta y tres"])
     return get_close_matches(string.lower(),departamentos,n=2,cutoff=0.6)[0]
 
+
+def check_results_from_dataframe(columna_calle,columna_localidad,columna_departamento,frame,referencia):
+    "Analiza un frame para buscar calles"
+    dep_error = []
+    loc_error = []
+    calle_error = []
+    start = datetime.now()
+    start_index = ""
+    df_append = pd.DataFrame()
+    for index, row in frame.iterrows():
+        if not start_index:
+            start_index = index
+        if index%1000 == 0:
+            #d = {'calle':calle_error, 'localidad':loc_error,'departamento':dep_error}
+            #inter = pd.DataFrame(data = d)
+            #df_append.append(inter)
+            print("Van {} y faltan {}, van {} errores".format(index,frame.shape[0]-index+start_index,len(dep_error)))
+            #print("Van {} minutos".format((datetime.now() - start).seconds/60))
+        calle = row[columna_calle]
+        localidad =  row[columna_localidad].strip()
+        departamento = row[columna_departamento].strip()
+        
+        result = search_street(calle,localidad,departamento,referencia)
+        if not result:
+            dep_error.append(departamento)
+            loc_error.append(localidad)
+            calle_error.append(calle)
+    d = {'calle':calle_error, 'localidad':loc_error,'departamento':dep_error}
+    inter = pd.DataFrame(data = d)
+    df_append = df_append.append(inter)
+    return df_append
+
+
