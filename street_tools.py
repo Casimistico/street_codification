@@ -1,48 +1,44 @@
+from difflib import get_close_matches
+import ast
+import time # Para evaluar la string como diccionarios
+from urllib import parse, request
 import pandas as pd
-from difflib import SequenceMatcher, get_close_matches
-import json, glob, re, time, ast # Para evaluar la string como diccionarios
-from urllib import parse , request
-from datetime import datetime
 import numpy as np
-from IPython.display import HTML, display, Image
-import tabulate
-import re
-
 
 def alphanumerical_to_digit(street):
     "Checks if a number is in alphanumerical representation and changes to digits"
 
     str_to_number = {'PRIMERO':1,
-                      'SEGUNDO':2,
-                      'TRES':3,
-                      'CUATRO':4,
-                      'CINCO':5,
-                      'SEIS':6,
-                      'SIETE':7,
-                      'OCHO':8,
-                      'NUEVE':9,
-                      'DIEZ':10,
-                      'ONCE':11,
-                      'DOCE':12,
-                      'TRECE':13,
-                      'CATORCE':14,
-                      'QUINCE':15,
-                      'DIECISEIS':16,
-                      'DIECISIETE':17,
-                      'DIECIOCHO':18,
-                      'DIECINUEVE':19,
-                      'VEINTE':20,
-                      'VEINTIUNO':21,
-                      'VEINTIDOS':22,
-                      'VEINTITRES':23,
-                      'VEINTICUATRO':24,
-                      'VEINTICINCO':25,
-                      'VEINTISEIS':26,
-                      'VEINTISIETE':27,
-                      'VEINTIOCHO':28,
-                      'VEINTINUEVE':29,
-                      'TREINTA':30,
-                      'TREINTA Y UNO':31
+                     'SEGUNDO':2,
+                     'TRES':3,
+                     'CUATRO':4,
+                     'CINCO':5,
+                     'SEIS':6,
+                     'SIETE':7,
+                     'OCHO':8,
+                     'NUEVE':9,
+                     'DIEZ':10,
+                     'ONCE':11,
+                     'DOCE':12,
+                     'TRECE':13,
+                     'CATORCE':14,
+                     'QUINCE':15,
+                     'DIECISEIS':16,
+                     'DIECISIETE':17,
+                     'DIECIOCHO':18,
+                     'DIECINUEVE':19,
+                     'VEINTE':20,
+                     'VEINTIUNO':21,
+                     'VEINTIDOS':22,
+                     'VEINTITRES':23,
+                     'VEINTICUATRO':24,
+                     'VEINTICINCO':25,
+                     'VEINTISEIS':26,
+                     'VEINTISIETE':27,
+                     'VEINTIOCHO':28,
+                     'VEINTINUEVE':29,
+                     'TREINTA':30,
+                     'TREINTA Y UNO':31
                      }
     
     
@@ -53,6 +49,7 @@ def alphanumerical_to_digit(street):
         return street.replace(number,str(str_to_number.get(number)))
     else:
         return street
+
 
 def digit_to_alphanumerical(street):
     "Checks if a number is in digits representation and changes to alphanumerical"
@@ -93,84 +90,95 @@ def digit_to_alphanumerical(street):
     if digit:
         return street.replace(digit[0],str(number_to_string.get(digit[0])))
 
+
+
 def suggest_dep(string):
     """Suggest a departamento """
     departamentos =(["artigas",
-                    "canelones",
-                    "cerro largo",
-                    "colonia",
-                    "durazno",
-                    "flores",
-                    "florida",
-                    "lavalleja",
-                    "maldonado",
-                    "montevideo",
-                    "paysandú",
-                    "río negro",
-                    "rivera",
-                    "rocha",
-                    "salto",
-                    "san josé",
-                    "soriano",
-                    "tacuarembó",
-                    "treinta y tres"])
+                     "canelones",
+                     "cerro largo",
+                     "colonia",
+                     "durazno",
+                     "flores",
+                     "florida",
+                     "lavalleja",
+                     "maldonado",
+                     "montevideo",
+                     "paysandú",
+                     "río negro",
+                     "rivera",
+                     "rocha",
+                     "salto",
+                     "san josé",
+                     "soriano",
+                     "tacuarembó",
+                     "treinta y tres"])
     return get_close_matches(string.lower(),departamentos,n=2,cutoff=0.6)[0]
 
 
+
 def process_street(street):
-    """Process the street information into INE format"""
+    """Processstreet information into INE format"""
     
-    #print("ENTRADA PROCESS STREET",street)
-    forbidden_char = ["Nº", "S/N",",","."] #Remplaza caracteres que estorban en la busqueda
-    non_street = [999] #Codigos para marcar que no es una calle
-    streets_with_digit = ["SENDA","CALLE"]  
-    # Arregla las calles "SIN NOMBRE". SI S/N Vuelve a aparecer mas adelante es "SIN NUMERO"
-    aptos = ["APTO", "APARTAMENTO"]
     
+    df = pd.read_excel('Consideraciones particulares.xlsx',header=2) #This is a file for a non coder user load special info in order to help processing data
+    
+    streets_with_digit = df[df.columns[0]].dropna().astype('str').to_list()
+    
+    aptos = df[df.columns[2]].dropna().astype('str').to_list()
+    
+    forbidden_char = df[df.columns[4]].dropna().astype('str').to_list()
+    
+    unnamed_streets =  df[df.columns[6]].dropna().astype('str').to_list()
+
+    street = street.strip()
+
+    
+    for unnamed in unnamed_streets: #Search for char combinations meaning "no name" 
+        if unnamed in street[:len(unnamed)]: 
+            street = street.replace(unnamed,"")
+            break 
+
     for apto in aptos:
         if apto in street:
             street = "".join(street.split(apto)[0])
-    if street in non_street: 
-        return "",""
     
-    #try:
-     #   street = street # Se fija si la calle contiene texto, Si es la calle es un numero lo devuelve como string
-    #except: 
-     #   return str(street) , "" #LA API de IDE acepta las calles con numero en formato str(numero)   str(numero) 
-        
+
     for char in forbidden_char:
-        street = street.replace(char,"1")
-        
+        if char == "S/N" and char in street:
+            if street.split().index("S/N") == len(street.split())-1:
+                street = street.replace(char,"1")
+            else:
+                street = street.replace(char,"")
     if set(streets_with_digit)&set(street.split()):
         try:
             street, number = digit_to_alphanumerical(street)
         except:
             None
+            
+    
     try:
-        if street.split()[-1].isdigit():
-            number = street.split()[-1]
-            street = ' '.join(street.split()[:-1])
+        if street.split()[-1].isdigit() and len(street.split())>1:
+            number = street.split()[-1] # Gets the door number of the address, if fails asigns "1" as door number
+            street = ' '.join(street.split()[:-1]) 
         else:
             number = "1"
     except:
             number = "1"
-    #print("SALIDA DE PROCESS STREET",street)
+            
     return street, number
 
+
 def suggest_streets(string,tryouts=3):
-    """Sugiere calles a partir de una string"""
+    """Suggest streets from data using IDE API"""
     query_args = {
-        "entrada" : string, # La sugerencia a buscar
+        "entrada" : string, 
         "todos":False
     }
     root = 'https://direcciones.ide.uy/'
     URL = root + '/api/v0/geocode/SugerenciaCalleCompleta?'
-    #r = request.Request(
-    #        url=URL,
-    #        data=parse.urlencode(query_args).encode('utf-8'),
-    #    )
     
-    while tryouts>0:
+    while tryouts > 0:
         try:
             r = request.urlopen(URL+parse.urlencode(query_args))
             data = r.read().decode('utf-8').replace('null','None')
@@ -179,18 +187,16 @@ def suggest_streets(string,tryouts=3):
             tryouts -= 1
             if tryouts == 0:
                 return []
-            time.sleep(0.5)
+            time.sleep(0.25)
             
             
-    if data=='[]':
-        
-        #print('No existe calle similar')
+    if data=='[]': #Server returns no data
         return []
     else:
         return ast.literal_eval(data)
 
-def suggest_location(localidad,departamento,limit=10,tryouts=3):
-    """Sugiere una localidad a partir de una string y checkea contra un departamento devolviendo sugerencia e id"""
+def suggest_location(localidad, departamento, limit=10, tryouts=3):
+    """Suggest a location from a strings and checks if exists in the countys(departamento). Retunrs suggested location and id"""
 
     
     departamentos =(["artigas",
@@ -216,20 +222,18 @@ def suggest_location(localidad,departamento,limit=10,tryouts=3):
     candidato_departamento = get_close_matches(departamento.lower(),departamentos,n=limit,cutoff=0.6)[0] 
     
     string = localidad + ", "+candidato_departamento
+    
     query_args = {
         "limit": 10,
-        "q" : string, # La sugerencia a buscar
+        "q" : string, 
         "soloLocalidad":True
     }
     
     
     root = 'https://direcciones.ide.uy/'
     URL = root + 'api/v1/geocode/candidates?'
-    while tryouts>0:
-        #r = request.Request(
-        #        url=URL,
-        #        data=parse.urlencode(query_args).encode('utf-8'),
-        #    )
+    while tryouts > 0:
+
         try:
             r = request.urlopen(URL+parse.urlencode(query_args))
             break
@@ -252,39 +256,41 @@ def suggest_location(localidad,departamento,limit=10,tryouts=3):
         idloc_suggested = idlocalidades[localidades.index(loc_suggested)]
         return [loc_suggested , idloc_suggested]
     except Exception as e:
-        #print("Este erro",e)
         loc_suggested = " "
         idloc_suggested = " "
         return [loc_suggested , idloc_suggested]
 
-def search_from_API(street,loc,dep,warning=False):  #Mejorar la funcion si no tiene localidad
-    """Encuentra una localidad dada una calle sugerida y una localidad. Devuelve un diccionario con los datos de esa calle"""
+
+def search_from_API(street, loc, dep):
     
-    #street, number = process_street(street)
+    """Finds a direction given a location and a street. Returns a dictionary with street info. """
+    
     
     if street and street.isdigit():
-        street += " " + street # La API busca los numeros de esta forma, ej: "60 60" es una busqueda valida para la calle 60
-    suggestions = suggest_streets(street)  #Consulta por calles similares a la API IDE
+        street += " " + street # INE API searchs "only numbers" by duplication, ex:  "60 60" is a valid entry for "calle 60"
+
+    suggestions = suggest_streets(street)  
     
-    #print(suggestions)
     try:
-        street = str(street) #Transformo las calles de numeros en strings #transformo las 
+        street = str(street) 
     except Exception as e:
-        return {'error':'La calle no contiene string'}
+        return {'error':'La calle no contiene string'} 
     
-    street = street.strip()   #Quito los espacios en blanco
     dep = dep.strip()
-    if not suggestions: #Si no se devuelven calles similares
+    
+    if not suggestions: 
         return  {'error':'No se encuentra calle simular'}
+    
     
     streets = [x.get('calle').lower() for x in suggestions] # Hay que trabajar con lower dado que las mayusculas afectan el ratio
     suggested_loc = [x.get('localidad').lower() for x in suggestions if x.get('localidad') is not None]
     suggested_idstreet = [x.get('idCalle') for x in suggestions] 
     suggested_idloc = [x.get('idLocalidad') for x in suggestions if x.get('idLocalidad') is not None] 
     suggested_dep = [x.get('departamento').lower() for x in suggestions if x.get('departamento') is not None] 
-    #print(streets)
+    
+    
     suggested_streets = get_close_matches(street.lower(),street,n=14,cutoff=0.6) 
-    #print(street, suggested_streets)
+    
     try:
         loc, idloc = suggest_location(loc.lower(),dep)
     except:
@@ -298,13 +304,16 @@ def search_from_API(street,loc,dep,warning=False):  #Mejorar la funcion si no ti
     suggested_idstreet = [suggested_idstreet[x] for x in suggested_street_indexes]
     suggested_dep =  [suggested_dep[x] for x in suggested_street_indexes]
     suggested_idloc = [suggested_idloc[x] for x in suggested_street_indexes]
-    #print(suggested_streets)
+
     if not suggested_streets:
         return {'error':'No se encuentra calle similar'}
+    
+    if suggested_streets.count(suggested_streets[0])> 1:
+        return {'error':'Calle Duplicada'}
+    
     else:
         try:
-            result = ({'calle':suggested_streets[0], #Solo se informa el primero
-                       #'numero': number,
+            result = ({'calle':suggested_streets[0], #Returns the best match
                    'id':suggested_idstreet[0],
                    'localidad':loc,
                    'idlocalidad':idloc,
@@ -314,62 +323,73 @@ def search_from_API(street,loc,dep,warning=False):  #Mejorar la funcion si no ti
         except Exception as e:
             return {'error':e}
 
-def search_from_frame(street,loc,dep,df):
-    "Hace una busqueda en en cascada dep/loc/calle devolviendo un diccionario de datos"
-    dep = dep    #Pasa a mayusculas ya que esta asi en el DF 
-    loc = loc
+def search_from_frame(street, loc, dep, df):
+    "Search street data in the Dataframe"
+    dep = dep.upper()    #Dataframe data is in upper
+    loc = loc.upper()
     
-    #street, number = process_street(street)
+    
     try:
-        suggested_dep = get_close_matches(dep,df.departamento.unique(),n=14,cutoff=0.6)[0] #Prueba buscar el departamento
-    except: 
+        suggested_dep = get_close_matches(dep,df.departamento.unique(),n=14,cutoff=0.6)[0] #Finds best match
+    except Exception as e:
         return {'error':'No se encuentra departamento en el frame'}
     try:
         suggested_loc = get_close_matches(loc,df[df['departamento']==suggested_dep]['localidad'].unique(),n=14,cutoff=0.8)[0]
         
     except Exception as e:
         return {'error':'No encuentro localidad en el nomenclator'} 
+    
     try:
         suggested_street = get_close_matches(street,df[(df['departamento']==suggested_dep)&(df['localidad']==suggested_loc)]['calle'].unique(),n=10,cutoff=0.6)[0]
     except Exception as e:
-        try: #Si la distancia de edición no funciona cuento cuantas veces aparecen los nombres de las palabras dentro de la calle en los candidatos. Quien tiene más palabras gana
+        try: #When edit distance fails to get a result words are counted, the candidate with the most common with data is returned
             candidates = df[(df['departamento']==suggested_dep)&(df['localidad']==suggested_loc)]['calle'].unique()
             word_counts = [count_matches(street,candidate) for candidate in candidates]
             if sum(word_counts) == 0:
-                return {'error': 'No se encuentran los datos ingresados'}
+                return {'error': 'No se encuentra dirección ingresada'}
             suggested_street = candidates[np.argmax(word_counts)]
         except:
-            return {'error': 'No se encuentran los datos ingresados'}
+            return {'error': 'No se encuentra dirección ingresada'}
         
     try:
         _ , idloc = suggest_location(suggested_loc,suggested_dep,limit=10)
-        if len(df[(df['departamento']==suggested_dep)&(df['calle']==suggested_street)&(df['localidad']==suggested_loc)]['idcalle']) > 1:
+        if len((df[(df['departamento']==suggested_dep)
+                   &(df['calle']==suggested_street)
+                   &(df['localidad']==suggested_loc)]['idcalle'])) > 1:
             return {'error':'Calle duplicada'}
         
-        result = ({'calle':suggested_street , #Solo se informa el primero
-                   'numero': number,
-                   'id': int(df[(df['departamento']==suggested_dep)&(df['calle']==suggested_street)&(df['localidad']==suggested_loc)]['idcalle']),
+        result = ({'calle':suggested_street , #Returns match
+                   'id': (int(df[(df['departamento']==suggested_dep)
+                                 &(df['calle']==suggested_street)
+                                 &(df['localidad']==suggested_loc)]['idcalle'])),
                    'localidad':suggested_loc,
                    'idlocalidad':idloc,
                    'departamento':suggested_dep,
                    'fuente':'Codificador'})
         return result
-    except:
-        return {'error': 'No se encuentran los datos ingresados'}
+    except Exception as e:
+        return {'error': 'No encuentro localidad en el nomenclator'}
 
-def get_data_IDE(street,loc,dep,df):
-    """ Searchs for street data in INE API and/or INE DataFrame"""
-    # HAY QUE ARREGLAR EL ULTIMO RETURN, esta en MODO DEBUG 
+
+def get_data_IDE(street, loc, dep, df):
+    """ Searchs for street data in INE API and/or INE DataFrame"""    
     
-    error = ""
-    # ----------
+    error = "" #DEFAULT ERROR
     
-    special_charecters = [",","-"]
+    special_charecters = [",", "-"]
+    exceptional_locs = ['PINEPARK', 'LAS DELICIAS', "ESTACION"] #Exceptions of locations in the Nomenclator, ex: "PINAMAR - PINEPARK"
+    
     possible_locs = []
     
+
+    
+    if not street: 
+        return {'error':'No se encuentra dirección ingresada'}
     
     
-    for char in special_charecters: #Search for only one of this characters. 
+    for char in special_charecters: 
+        if set(exceptional_locs)&set(loc): 
+            break
         if char in loc:
             possible_locs = loc.split(char)
             break
@@ -378,6 +398,9 @@ def get_data_IDE(street,loc,dep,df):
         possible_locs.append(loc)
     else:
         possible_locs = [x.strip().upper() for x in possible_locs]
+
+
+    ### ---------------If dep is empty suggest one---------------------------
         
     if not dep:
         for loc in possible_locs:
@@ -385,105 +408,102 @@ def get_data_IDE(street,loc,dep,df):
             if dep:
                 possible_locs.pop(possible_locs.index(loc))
                 break
-    
+                
+    if street.split()[0].isdigit() and len(street.split()) > 1:
         
-    if street.split()[0].isdigit():
         for loc in possible_locs:
             result = search_from_frame(street,loc,dep,df)
             if 'error' not in result.keys():
                 return result
             else:
+                if not street:
+                    return {'error':"No se encuentra dirección ingresada"}
                 street = digit_to_alphanumerical(street)
         
-    #street = digit_to_alphanumerical(street) ### Reemplaza numeros de fechas letra a alfanumerico. 
-    # Esto va fuera de process_street debido a que algunas fechas en la base tienen numero en digito y otros en alfanumerico
-    
-    
-    ### --------------------------------------------------------------------------
-    
+    ### -------------------------------------------------------------------------- 
+
+
     for loc in possible_locs:
         result = search_from_API(street,loc,dep)
         if not 'error' in result.keys():
             return result
-        
+      
         else:
             if not error:
-                error = ' '.join((error,result.get('error')))
+                error = ' '.join((error, result.get('error')))
             else:
                 error = result.get('error')
-            result = search_from_frame(street,loc,dep,df)
+            
+            result = search_from_frame(street, loc, dep, df)
             
             if 'error' in result.keys():
-                error = ' '.join((error,result.get('error')))
+                error = result.get('error')
                 return {'error':error}
             
     return result
 
-def search_street(street,loc,dep,df):
+def search_street(street, loc, dep, df): 
     """Calls get_data_INE for data of a street. 
     If it fails it changes the street name to fix INE notation problems (mostly dates) and tries again. 
     """
-    result = get_data_IDE(street,loc,dep,df)
-    #print("RESULT DE SEARCH STREET",result)
-    special_streets = [("S/N","SIN NOMBRE"),("SN","SIN NOMBRE"),("CALLE","")] #Las calles especiales y sus correspondientes normalizaciones
-    if 'error' in result.keys():
-        for special in special_streets:
-            if special[0] in street:
-                street = street.replace(special[0],special[1])
-                result = get_data_IDE(street,loc,dep,df)
-                if 'error' not in result.keys():
-                    break
+    result = get_data_IDE(street, loc, dep, df)
+    if 'error' in result.keys() and street.split()[0] == "CALLE":
+        street = street.replace("CALLE","")
+        result = get_data_IDE(street, loc, dep, df)
     return result
 
-def search_address(street,loc,dep,codificador,tryouts=3):
+def search_address(street, loc, dep, codificador, tryouts=3):
     """Finds a location """
+
     street = parse.unquote(street)
-    street = street.upper().replace("S/N","1")
     
     street, number = process_street(street)
     
-    #print("Entrada search address", street,number)
+    validated_street = search_street(street, loc, dep, codificador)
+    street = validated_street.get('calle')
+        
+    if not street or  validated_street.get("error") == 'Calle duplicada':
+        return ({'calleNormalizada':'',
+                 'idCalleIDE':'',
+                 'nro_puerta':'',
+                 'codigoPostal':'',
+                 'puntoX':'',
+                 'puntoY':'',
+                 'idPuntoIDE':'',
+                 'error':validated_street.get('error')})
     
-    validated_data = search_street(street,loc,dep,codificador)
-    #print(validated_data)
     street = street + ' ' + number + ' '
     dep = dep.upper() + ' '
     loc = loc.upper()
-    
-    
-    #street = result.get('calle') + str(result.get('numero')) +' ' # La api de direcciones exactas Quotea los caracteres especiales y agrega un espacio al final de cada valor
-    #dep = result.get("departamento") + ' '
-    #loc = result.get("localidad")
+
     root = 'https://direcciones.ide.uy/'
     URL = root + 'api/v0/geocode/BusquedaDireccion?'
     
     query_args = {
-        "calle" : street, # La sugerencia a buscar
+        "calle" : street, 
         "departamento":dep,
         "localidad":loc
     }
     
-    while tryouts>0:
+    while tryouts > 0:
         try:
-            r = request.urlopen(URL+parse.urlencode(query_args,quote_via=parse.quote))
-            data = r.read().decode('utf-8').replace('null','None')
+            r = request.urlopen(URL+parse.urlencode(query_args, quote_via=parse.quote))
+            data = r.read().decode('utf-8').replace('null', 'None')
             break
         except Exception as e:
             tryouts -= 1
             if tryouts == 0:
                 return ({'calleNormalizada':'',
-                     'idCalleIDE':'',
-                     'nro_puerta':'',
-                     'codigoPostal':'',
-                     'puntoX':'',
-                     'puntoY':'',
-                     'idPuntoIDE':'',
-                     'error': e + ' en API IDE'})
-                
-                
-    
+                         'idCalleIDE':'',
+                         'nro_puerta':'',
+                         'codigoPostal':'',
+                         'puntoX':'',
+                         'puntoY':'',
+                         'idPuntoIDE':'',
+                         'error': e + ' en API IDE'})
+            
     result = ast.literal_eval(data)
-    #print(result)
+
     for parcial in result:
         dire = parcial.get('direccion')
         try:
@@ -498,58 +518,54 @@ def search_address(street,loc,dep,codificador,tryouts=3):
                      'idPuntoIDE':'',
                      'error':'No se encuentra dirección ingresada'})
 
-        if street_id == validated_data.get('id'):
+        if street_id == validated_street.get('id'):
             result = parcial
             break
         result = []
-            
-            
+
     if isinstance(result, list):
         return ({'calleNormalizada':'',
-                     'idCalleIDE':'',
-                     'nro_puerta':'',
-                     'codigoPostal':'',
-                     'puntoX':'',
-                     'puntoY':'',
-                     'idPuntoIDE':'',
-                     'error':'No se encuentra dirección ingresada'})
+                 'idCalleIDE':'',
+                 'nro_puerta':'',
+                 'codigoPostal':'',
+                 'puntoX':'',
+                 'puntoY':'',
+                 'idPuntoIDE':'',
+                 'error':'No se encuentra dirección ingresada'})
 
             
     if result:
-        
-        #if 'PUNTO NO ENCONTRADO.' in result.get('error'):
-        #    street += " 0" # Si falta numero de puerta hay que agregarselo por error en API IDE
-        #    return search_address(street,loc,dep,codificador,tryouts=3)
-    
         calle_nor = result.get('direccion').get('calle').get('nombre_normalizado')
         calle_id = result.get('direccion').get('calle').get('idCalle')
-        nro_puerta = result.get('direccion').get('numero').get('nro_puerta')
-        codigoPostal = result.get('codigoPostal')
-        puntoX = result.get('puntoX')
-        puntoY = result.get('puntoY')
-        idPuntoIDE = result.get('idPunto')
+        nro_puerta = result.get('direccion').get('numero', {'nro_puerta':'1'}).get('nro_puerta') 
+        codigo_Postal = result.get('codigoPostal')
+        punto_X = result.get('puntoX')
+        punto_Y = result.get('puntoY')
+        id_Punto_IDE = result.get('idPunto')
         error = ""
 
         return ({'calleNormalizada':calle_nor,
                  'idCalleIDE':calle_id,
                  'nro_puerta_aprox':nro_puerta,
-                 'codigoPostal':codigoPostal,
-                 'puntoX':puntoX,
-                 'puntoY':puntoY,
-                 'idPuntoIDE':idPuntoIDE,
+                 'codigoPostal':codigo_Postal,
+                 'puntoX':punto_X,
+                 'puntoY':punto_Y,
+                 'idPuntoIDE':id_Punto_IDE,
                  'error':error})
     
-    elif street.split()[0].isdigit(): #Evita las calles '3'            
-            # Algunas calles tienen nomenclatura ambigua en cuanto a los digitos en la base INE, por lo que hay que chequear. 
+    elif street.split()[0].isdigit():  #Changes streets that made from numbers, like '3'
         street = digit_to_alphanumerical(street) 
-           
-        return search_address(street,loc,dep,codificador)
+
+        return search_address(street, loc, dep, codificador)
     else:
+        
         return ({'calleNormalizada':'',
-                     'idCalleIDE':'',
-                     'nro_puerta':'',
-                     'codigoPostal':'',
-                     'puntoX':'',
-                     'puntoY':'',
-                     'idPuntoIDE':'',
-                     'error':'No se encuentra dirección ingresada'})
+                 'idCalleIDE':'',
+                 'nro_puerta':'',
+                 'codigoPostal':'',
+                 'puntoX':'',
+                 'puntoY':'',
+                 'idPuntoIDE':'',
+                 'error':'No se encuentra dirección ingresada'})
+
+
