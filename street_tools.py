@@ -133,6 +133,10 @@ def process_street(street):
 
     street = street.strip()
 
+    try:
+        street = street.upper()
+    except:
+        None
     
     for unnamed in unnamed_streets: #Search for char combinations meaning "no name" 
         if unnamed in street[:len(unnamed)]: 
@@ -500,7 +504,7 @@ def search_address(street, loc, dep, codificador, tryouts=3):
                          'puntoX':'',
                          'puntoY':'',
                          'idPuntoIDE':'',
-                         'error': e + ' en API IDE'})
+                         'error': str(e) + ' en API IDE'})
             
     result = ast.literal_eval(data)
 
